@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $student_id = trim($_POST['student_id'] ?? '');
     $password   = $_POST['password'] ?? '';
 
-    $stmt = $conn->prepare('SELECT id, student_id, password FROM users WHERE student_id = ?');
+    $stmt = $conn->prepare('SELECT id, username, student_id, password FROM users WHERE student_id = ?');
     $stmt->bind_param('s', $student_id);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($user && password_verify($password, $user['password'])) {
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
         $_SESSION['student_id'] = $user['student_id'];
 
         $upd = $conn->prepare('UPDATE users SET last_login = NOW() WHERE id = ?');

@@ -3,13 +3,18 @@ session_start();
 require __DIR__ . '/config.php';
 
 $errors = [];
+$username = '';
 $student_id = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username   = preg_replace('/\s+/', ' ', trim($_POST['username'] ?? ''));
     $student_id = trim($_POST['student_id'] ?? '');
     $password   = $_POST['password'] ?? '';
     $confirm    = $_POST['confirm'] ?? '';
 
+        if (!preg_match('/^[A-Za-z0-9_. -]{3,50}$/', $username)) {
+        $errors[] = 'Username must be 3-50 characters: letters, digits, spaces, dot, hyphen or underscore.';
+    }
     if (!preg_match('/^[A-Za-z0-9]{4,20}$/', $student_id)) {
         $errors[] = 'Enter a valid student ID (4-20 letters or digits).';
     }
@@ -21,20 +26,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
-        $stmt = $conn->prepare('SELECT id FROM users WHERE student_id = ?');
-        $stmt->bind_param('s', $student_id);
+        $stmt = $conn->prepare('SELECT id FROM users WHERE username = ? OR student_id = ?');
+        $stmt->bind_param('ss', $username, $student_id);
         $stmt->execute();
         $stmt->store_result();
         if ($stmt->num_rows > 0) {
-            $errors[] = 'That student ID is already registered.';
+            $errors[] = 'That username or student ID is already registered.';
         }
         $stmt->close();
     }
 
     if (!$errors) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('INSERT INTO users (student_id, password) VALUES (?, ?)');
-        $stmt->bind_param('ss', $student_id, $hash);
+        $stmt = $conn->prepare('INSERT INTO users (username, student_id, password) VALUES (?, ?, ?)');
+        $stmt->bind_param('sss', $username, $student_id, $hash);
         $stmt->execute();
         $stmt->close();
         header('Location: login.php?registered=1');
@@ -50,6 +55,9 @@ include __DIR__ . '/header.php';
     <p class="msg error"><?= e($err) ?></p>
   <?php endforeach; ?>
   <form method="post" action="signup.php">
+    <label>Student Name
+      <input type="text" name="username" value="<?= e($username) ?>" required maxlength="50">
+    </label>
     <label>Student ID
       <input type="text" name="student_id" value="<?= e($student_id) ?>" required maxlength="20">
     </label>
