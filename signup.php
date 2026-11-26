@@ -3,20 +3,15 @@ session_start();
 require __DIR__ . '/config.php';
 
 $errors = [];
-$username = '';
-$email = '';
+$student_id = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirm  = $_POST['confirm'] ?? '';
+    $student_id = trim($_POST['student_id'] ?? '');
+    $password   = $_POST['password'] ?? '';
+    $confirm    = $_POST['confirm'] ?? '';
 
-    if ($username === '' || strlen($username) > 50) {
-        $errors[] = 'Username is required (max 50 characters).';
-    }
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 100) {
-        $errors[] = 'Enter a valid email address.';
+    if (!preg_match('/^[A-Za-z0-9]{4,20}$/', $student_id)) {
+        $errors[] = 'Enter a valid student ID (4-20 letters or digits).';
     }
     if (strlen($password) < 8) {
         $errors[] = 'Password must be at least 8 characters.';
@@ -26,20 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
-        $stmt = $conn->prepare('SELECT id FROM users WHERE username = ? OR email = ?');
-        $stmt->bind_param('ss', $username, $email);
+        $stmt = $conn->prepare('SELECT id FROM users WHERE student_id = ?');
+        $stmt->bind_param('s', $student_id);
         $stmt->execute();
         $stmt->store_result();
         if ($stmt->num_rows > 0) {
-            $errors[] = 'That username or email is already registered.';
+            $errors[] = 'That student ID is already registered.';
         }
         $stmt->close();
     }
 
     if (!$errors) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)');
-        $stmt->bind_param('sss', $username, $hash, $email);
+        $stmt = $conn->prepare('INSERT INTO users (student_id, password) VALUES (?, ?)');
+        $stmt->bind_param('ss', $student_id, $hash);
         $stmt->execute();
         $stmt->close();
         header('Location: login.php?registered=1');
@@ -55,11 +50,8 @@ include __DIR__ . '/header.php';
     <p class="msg error"><?= e($err) ?></p>
   <?php endforeach; ?>
   <form method="post" action="signup.php">
-    <label>Username
-      <input type="text" name="username" value="<?= e($username) ?>" required maxlength="50">
-    </label>
-    <label>Email
-      <input type="email" name="email" value="<?= e($email) ?>" required maxlength="100">
+    <label>Student ID
+      <input type="text" name="student_id" value="<?= e($student_id) ?>" required maxlength="20">
     </label>
     <label>Password
       <input type="password" name="password" required minlength="8">
